@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pomodoro – シンプルなポモドーロタイマー</title>
+  <meta name="description" content="作業と休憩を計測し、実績をカレンダーで記録できるオフライン対応のポモドーロタイマー。">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Pomodoro">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-512.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>Pomodoro</h1>
+      <div class="totals" aria-label="本日の実績">
+        <span id="todayCount">🍅 0</span>
+        <span id="todayGold">🥇 0</span>
+      </div>
+    </header>
+
+    <!-- タイマー -->
+    <section id="view-timer" class="view active">
+      <div class="phase" id="phaseLabel">作業</div>
+      <div class="ring-wrap">
+        <svg viewBox="0 0 220 220" class="ring" aria-hidden="true">
+          <circle class="ring-bg" cx="110" cy="110" r="100"/>
+          <circle class="ring-fg" id="ringFg" cx="110" cy="110" r="100"/>
+        </svg>
+        <div class="time" id="timeText" role="timer" aria-live="off">25:00</div>
+      </div>
+      <div class="controls">
+        <button id="btnReset" class="btn ghost" aria-label="リセット">リセット</button>
+        <button id="btnStart" class="btn primary">開始</button>
+        <button id="btnSkip" class="btn ghost" aria-label="スキップ">スキップ</button>
+      </div>
+      <div class="progress4" id="progress4" aria-label="金のポモドーロまで"></div>
+      <div class="settings">
+        <label>作業 <input type="number" id="setWork" min="1" max="180" inputmode="numeric"> 分</label>
+        <label>休憩 <input type="number" id="setBreak" min="1" max="60" inputmode="numeric"> 分</label>
+      </div>
+      <p class="hint" id="notifHint"></p>
+    </section>
+
+    <!-- カレンダー -->
+    <section id="view-calendar" class="view">
+      <div class="cal-head">
+        <button class="btn icon" id="calPrev" aria-label="前月">‹</button>
+        <h2 id="calTitle"></h2>
+        <button class="btn icon" id="calNext" aria-label="翌月">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-sum" id="calSum"></div>
+      <div class="day-detail" id="dayDetail"></div>
+    </section>
+
+    <!-- データ・共有 -->
+    <section id="view-data" class="view">
+      <h2>共有</h2>
+      <div class="card">
+        <textarea id="shareText" rows="5" readonly></textarea>
+        <div class="row">
+          <button class="btn primary" id="btnCopy">文章をコピー</button>
+          <button class="btn" id="btnImage">カレンダー画像を保存</button>
+        </div>
+      </div>
+      <h2>CSV</h2>
+      <div class="card">
+        <p class="note">BOM付きUTF-8。インポート時、本日分は端末のデータを優先し、昨日以前はCSVの内容で上書きします。</p>
+        <div class="row">
+          <button class="btn" id="btnExport">エクスポート</button>
+          <button class="btn" id="btnImport">インポート</button>
+          <input type="file" id="fileInput" accept=".csv,text/csv" hidden>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-view="timer" role="tab">タイマー</button>
+    <button class="tab" data-view="calendar" role="tab">カレンダー</button>
+    <button class="tab" data-view="data" role="tab">共有・CSV</button>
+  </nav>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
