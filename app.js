@@ -12,7 +12,7 @@ const goldOf = n => Math.floor(n / 4);          // 1日あたり4ポモドーロ
 
 /* 実績: 完了時刻(ms)の配列。金は日ごとの件数から導出 */
 let sessions = LS.get('pomo.sessions', []);
-let settings = Object.assign({ work: 25, break: 5, sound: false }, LS.get('pomo.settings', {}));   // sound: アラーム音（既定は無音）
+let settings = Object.assign({ work: 25, break: 5, sound: false, autoBreak: false, autoWork: false }, LS.get('pomo.settings', {}));   // sound: アラーム音 / autoBreak: 作業後に休憩を自動開始 / autoWork: 休憩後に作業を自動開始（既定はいずれもOFF）
 let timer = LS.get('pomo.timer', null) || { phase: 'work', status: 'idle', endAt: 0, remaining: settings.work * 60000 };
 
 const saveSessions = () => LS.set('pomo.sessions', sessions);
@@ -73,6 +73,10 @@ function complete(at) {
   }
   timer.phase = wasWork ? 'break' : 'work';
   timer.status = 'idle'; timer.remaining = durOf(timer.phase);
+  // 自動開始（本来の終了時刻から計測するのでずれない。次のフェーズも既に終わっている場合は開始しない＝離席中に連鎖記録されない）
+  if ((wasWork ? settings.autoBreak : settings.autoWork) && at + durOf(timer.phase) > Date.now()) {
+    timer.status = 'running'; timer.endAt = at + durOf(timer.phase);
+  }
   saveTimer(); render(); renderCalendar(); renderShare();
 }
 
@@ -102,6 +106,8 @@ function render() {
   $('#progress4').innerHTML = [0, 1, 2, 3].map(i => `<span class="dot ${i < n % 4 ? 'on' : ''}"></span>`).join('');
   $('#setWork').value = settings.work; $('#setBreak').value = settings.break;
   $('#setSound').checked = settings.sound;
+  $('#setAutoBreak').checked = settings.autoBreak;
+  $('#setAutoWork').checked = settings.autoWork;
   paint(timer.status === 'running' ? Math.max(0, timer.endAt - Date.now()) : timer.remaining);
 }
 
@@ -299,12 +305,12 @@ function onSetting() {
   const w = Math.min(180, Math.max(1, parseInt($('#setWork').value) || settings.work));
   const b = Math.min(60, Math.max(1, parseInt($('#setBreak').value) || settings.break));
   const wasSound = settings.sound;
-  settings = { work: w, break: b, sound: $('#setSound').checked }; LS.set('pomo.settings', settings);
+  settings = { work: w, break: b, sound: $('#setSound').checked, autoBreak: $('#setAutoBreak').checked, autoWork: $('#setAutoWork').checked }; LS.set('pomo.settings', settings);
   if (settings.sound && !wasSound) { unlockAudio(); playChime(); }   // ONにした時に試聴
   if (timer.status === 'idle') timer.remaining = durOf(timer.phase);
   saveTimer(); render();
 }
-$('#setWork').onchange = $('#setBreak').onchange = $('#setSound').onchange = onSetting;
+$('#setWork').onchange = $('#setBreak').onchange = $('#setSound').onchange = $('#setAutoBreak').onchange = $('#setAutoWork').onchange = onSetting;
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));

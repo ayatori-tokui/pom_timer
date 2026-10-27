@@ -1,4 +1,4 @@
-const CACHE = 'pomodoro-v3';   // 更新時はこの番号を上げる
+const CACHE = 'pomodoro-v5';   // 更新時はこの番号を上げる
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icons/icon.svg', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
