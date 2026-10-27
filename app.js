@@ -12,7 +12,7 @@ const goldOf = n => Math.floor(n / 4);          // 1日あたり4ポモドーロ
 
 /* 実績: 完了時刻(ms)の配列。金は日ごとの件数から導出 */
 let sessions = LS.get('pomo.sessions', []);
-let settings = LS.get('pomo.settings', { work: 25, break: 5 });
+let settings = Object.assign({ work: 25, break: 5, sound: false }, LS.get('pomo.settings', {}));   // sound: アラーム音（既定は無音）
 let timer = LS.get('pomo.timer', null) || { phase: 'work', status: 'idle', endAt: 0, remaining: settings.work * 60000 };
 
 const saveSessions = () => LS.set('pomo.sessions', sessions);
@@ -45,6 +45,7 @@ function startTimer() {
     timer.endAt = Date.now() + timer.remaining;  // 差分計算の基準となる終了時刻
     timer.status = 'running';
     requestNotif();
+    unlockAudio();
   }
   saveTimer(); render();
 }
@@ -61,6 +62,7 @@ function skipPhase() {
 /* 終了処理。at = 本来の終了時刻（スリープ中に終わっても正しい記録時刻になる） */
 function complete(at) {
   const wasWork = timer.phase === 'work';
+  if (Date.now() - at < 10000) playChime();   // 復帰時の大幅な遅延では鳴らさない
   if (wasWork) {
     sessions.push(at); saveSessions();
     const n = (byDay().get(dateKey(at)) || []).length;
@@ -99,7 +101,34 @@ function render() {
   $('#todayGold').textContent = `🥇 ${goldOf(n)}`;
   $('#progress4').innerHTML = [0, 1, 2, 3].map(i => `<span class="dot ${i < n % 4 ? 'on' : ''}"></span>`).join('');
   $('#setWork').value = settings.work; $('#setBreak').value = settings.break;
+  $('#setSound').checked = settings.sound;
   paint(timer.status === 'running' ? Math.max(0, timer.endAt - Date.now()) : timer.remaining);
+}
+
+/* ========== アラーム音（任意・Web Audioで合成。音声ファイル不要） ========== */
+let audioCtx = null;
+function unlockAudio() {   // iOSはユーザー操作内で生成/再開が必要
+  if (!settings.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch { }
+}
+function playChime() {
+  if (!settings.sound) return;
+  try {
+    unlockAudio();
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime + 0.05;
+    [880, 1174.66, 1567.98].forEach((f, i) => {   // 上昇する3音
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = t0 + i * 0.22;
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + 0.65);
+    });
+  } catch { }
 }
 
 /* ========== 通知（サイレント） ========== */
@@ -111,7 +140,7 @@ function updateHint() {
   let m = '';
   if (!('Notification' in window)) m = 'この環境は通知に未対応です。iPhoneはホーム画面に追加すると通知が使えます。';
   else if (Notification.permission === 'denied') m = '通知がブロックされています。ブラウザ設定で許可してください。';
-  else if (Notification.permission === 'default') m = '開始ボタンを押すと通知の許可を求めます（音は鳴りません）。';
+  else if (Notification.permission === 'default') m = '開始ボタンを押すと通知の許可を求めます（通知自体はサイレントです）。';
   $('#notifHint').textContent = m;
 }
 async function notify(title, body) {
@@ -269,11 +298,13 @@ $('#calGrid').onclick = e => { const b = e.target.closest('.cell[data-k]'); if (
 function onSetting() {
   const w = Math.min(180, Math.max(1, parseInt($('#setWork').value) || settings.work));
   const b = Math.min(60, Math.max(1, parseInt($('#setBreak').value) || settings.break));
-  settings = { work: w, break: b }; LS.set('pomo.settings', settings);
+  const wasSound = settings.sound;
+  settings = { work: w, break: b, sound: $('#setSound').checked }; LS.set('pomo.settings', settings);
+  if (settings.sound && !wasSound) { unlockAudio(); playChime(); }   // ONにした時に試聴
   if (timer.status === 'idle') timer.remaining = durOf(timer.phase);
   saveTimer(); render();
 }
-$('#setWork').onchange = $('#setBreak').onchange = onSetting;
+$('#setWork').onchange = $('#setBreak').onchange = $('#setSound').onchange = onSetting;
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
